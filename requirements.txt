@@ -1,0 +1,6 @@
+sklearn
+torch 
+torchvision
+opencv-python
+albumentations
+pandas
