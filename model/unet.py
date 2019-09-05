@@ -351,3 +351,11 @@ class Unet(EncoderDecoder):
         super().__init__(encoder, decoder, activation)
 
         self.name = 'u-{}'.format(encoder_name)
+
+
+inputs = torch.randn(4, 3, 256, 1600)
+model = Unet("resnet18", encoder_weights="imagenet", classes=4, activation=None)
+
+outputs = model(inputs)
+
+print(outputs.size())

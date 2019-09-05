@@ -16,7 +16,7 @@ pytorch_estimator = PyTorch(entry_point='train.py',
                             train_instance_type=instance_type,
                             train_instance_count=1,
                             train_volume_size=200,
-                            base_job_name= 'toyota4-u',
+                            base_job_name= 'toyota-netdepp',
                             train_max_run=5*86400,  # 86400s ~ 1day
                             framework_version='1.1.0',
                             py_version="py3")
