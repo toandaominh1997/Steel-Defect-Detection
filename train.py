@@ -78,7 +78,7 @@ if __name__ == '__main__':
     parser.add_argument('--list_train', default='./data/train.csv', type=str)
     parser.add_argument('--batch_size', default=24, type=int)
     parser.add_argument('--lr', default=5e-3, type=float)
-    parser.add_argument('--num_epoch', default=50, type=int)
+    parser.add_argument('--num_epoch', default=200, type=int)
     parser.add_argument('--num_class', default=4, type=int)
     parser.add_argument('--module_name', default="PSPNet_Resnet34", type=str)
     args = parser.parse_args()

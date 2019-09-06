@@ -61,74 +61,34 @@ class ImgAugTransform:
 
         return Image.fromarray(transformed_img)
 
-def get_transforms(phase, mean, std):
-
-    transform = Compose([
-
-            transforms.RandomApply(
-                [
-                    random_dilate,
-                ],
-                p=0.15),
-
-            transforms.RandomApply(
-                [
-                    random_erode,
-                ],
-                p=0.15),
-
-            transforms.RandomApply(
-                [
-                    ImgAugTransform(),
-                ],
-                p=0.15),
-                
-            transforms.RandomApply(
-                [
-                    HorizontalFlip(p=1),
-                ],
-                p=0.15),
-
-            transforms.RandomApply(
-                [
-                   VerticalFlip(p=1),
-                ],
-                p=0.15),
-            transforms.RandomApply(
-                [
-                  ElasticTransform(p=1, alpha=120, sigma=120 * 0.05, alpha_affine=120 * 0.03),
-                ],
-                p=0.15),
-            transforms.RandomApply(
-                [
-                   GridDistortion(p=1),
-                ],
-                p=0.15),
-            transforms.RandomApply(
-                [
-                   OpticalDistortion(p=1, distort_limit=2, shift_limit=0.5),
-                ],
-                p=0.15),
-            transforms.RandomApply(
-                [
-                   VerticalFlip(p=1),
-                ],
-                p=0.15),
-            transforms.RandomApply(
-                [
-                   VerticalFlip(p=1),
-                ],
-                p=0.15),
-            Normalize(mean=mean, std=std, p=1),
-            ToTensor(),
+def get_transforms():
+    original_height = 256
+    original_width = 1600
+    aug = Compose([
+    OneOf([RandomSizedCrop(min_max_height=(50, 101), height=original_height, width=original_width, p=0.5),
+          PadIfNeeded(min_height=original_height, min_width=original_width, p=0.5)], p=1),    
+    VerticalFlip(p=0.5),              
+    # RandomRotate90(p=0.5),
+    OneOf([
+        ElasticTransform(p=0.5, alpha=120, sigma=120 * 0.05, alpha_affine=120 * 0.03),
+        GridDistortion(p=0.5),
+        OpticalDistortion(p=1, distort_limit=2, shift_limit=0.5)                  
+        ], p=0.8),
+    CLAHE(p=0.8),
+    RandomBrightnessContrast(p=0.8),    
+    RandomGamma(p=0.8),
+    # HorizontalFlip(),
+    Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), p=1),
+    ToTensor(),
+    
     ])
-    return transform
+    return aug
 class SteelDataset(Dataset):
-    def __init__(self, root_dataset, list_data, mean, std, phase):
+    def __init__(self, root_dataset, list_data):
         super(SteelDataset, self).__init__()
         self.root_dataset = root_dataset
         self.df = self.__read_file__(list_data=list_data)
-        self.transforms = get_transforms(phase, mean, std)
+        self.transforms = get_transforms()
     
     def __read_file__(self, list_data):
         df = pd.read_csv(os.path.join(list_data))
