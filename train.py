@@ -74,7 +74,8 @@ def train(data_loader):
         if (idx + 1 ) % accumulation_steps == 0:
             optimizer.step()
             optimizer.zero_grad()
-        total_loss += loss
+        total_loss += loss.item()
+    torch.cuda.empty_cache()
     return total_loss/len(data_loader)
 
 def evaluate(data_loader):
@@ -90,10 +91,10 @@ def evaluate(data_loader):
             outputs = outputs.detach().cpu()
             segm = segm.detach().cpu() 
             meter.update(segm, outputs) 
-            total_loss += loss
+            total_loss += loss.item()
         dices, iou = meter.get_metrics() 
         dice, dice_neg, dice_pos = dices
-        
+        torch.cuda.empty_cache()
         return total_loss/len(data_loader), iou, dice, dice_neg, dice_pos
 
 
