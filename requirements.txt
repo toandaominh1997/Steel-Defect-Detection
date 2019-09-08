@@ -4,3 +4,6 @@ torchvision
 opencv-python
 albumentations
 pandas
+pretrainedmodels
+imgaug
+torchnet

@@ -267,10 +267,10 @@ class HRNetV2(nn.Module):
             }
 
         # stem net
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1,
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1,
                                bias=False)
         self.bn1 = BatchNorm2d(64, momentum=BN_MOMENTUM)
-        self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1,
+        self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1,
                                bias=False)
         self.bn2 = BatchNorm2d(64, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
@@ -393,10 +393,9 @@ class HRNetV2(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        
-        x = self.conv2(x)
-        x = self.bn2(x)
-        x = self.relu(x)
+        # x = self.conv2(x)
+        # x = self.bn2(x)
+        # x = self.relu(x)
         x = self.layer1(x)
 
         x_list = []
@@ -415,14 +414,12 @@ class HRNetV2(nn.Module):
                 x_list.append(y_list[i])
         y_list = self.stage3(x_list)
 
-
         x_list = []
         for i in range(self.stage4_cfg['NUM_BRANCHES']):
             if self.transition3[i] is not None:
                 x_list.append(self.transition3[i](y_list[-1]))
             else:
                 x_list.append(y_list[i])
-        
         x = self.stage4(x_list)
 
         # Upsampling
@@ -437,7 +434,7 @@ class HRNetV2(nn.Module):
         x = torch.cat([x[0], x1, x2, x3], 1)
 
         # x = self.last_layer(x)
-        return x
+        return [x]
 
 
 def hrnetv2(pretrained=False, **kwargs):
@@ -446,4 +443,3 @@ def hrnetv2(pretrained=False, **kwargs):
         model.load_state_dict(load_url(model_urls['hrnetv2']), strict=False)
 
     return model
-

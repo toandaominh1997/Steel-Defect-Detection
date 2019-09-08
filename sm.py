@@ -16,9 +16,11 @@ pytorch_estimator = PyTorch(entry_point='train.py',
                             train_instance_type=instance_type,
                             train_instance_count=1,
                             train_volume_size=200,
-                            base_job_name= 'toyota-netdepp',
+                            base_job_name= 'toyota4',
                             train_max_run=5*86400,  # 86400s ~ 1day
                             framework_version='1.1.0',
-                            py_version="py3")
+                            py_version="py3",
+                            hyperparameters = {'encoder': "resnet50", 'decoder': "Unet", 'batch_size': 16, "encoder_weights": "imagenet"}
+                            )
 
 pytorch_estimator.fit() 
