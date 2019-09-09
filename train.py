@@ -48,17 +48,53 @@ modules = {
 
 }
 train_dataset = SteelDataset(root_dataset = args.root_dataset, list_data = args.list_train, phase='train')
-train_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=True, num_workers=4)
+
+
 
 valid_dataset = SteelDataset(root_dataset = args.root_dataset, list_data = args.list_train, phase='valid')
-valid_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=True, num_workers=4)
+
 
 
 criterion = nn.BCEWithLogitsLoss()
-model = modules["{}_{}".format(args.fencoder, args.fdecoder)]
+model = modules["{}_{}".format(args.encoder, args.decoder)]
 model = model.cuda()
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
 scheduler = ReduceLROnPlateau(optimizer, mode="min", patience=3, verbose=True)
+
+def choosebatchsize(dataset, model, optimizer, criterion):
+    batch_size = 32
+    data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=False, num_workers=4)
+    dataloader_iterator = iter(data_loader)
+    model = model.cuda()
+    model.train()
+    while True:
+        try:
+            image, target = next(dataloader_iterator)
+            image = image.cuda()
+            target = target.cuda()
+            outputs = model(image)
+            loss = criterion(outputs, target)
+            loss.backward()
+            optimizer.zero_grad()
+            optimizer.step()
+            image = None 
+            target = None
+            outputs = None 
+            loss = None 
+            torch.cuda.empty_cache()
+            return batch_size
+        except RuntimeError as e:
+            print('Runtime Error {} at batch size: {}'.format(e, batch_size))
+            batch_size = batch_size - 4
+            if batch_size<=0:
+                batch_size = 1
+            data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=False, num_workers=4)
+            dataloader_iterator = iter(data_loader)
+
+args.batch_size = choosebatchsize(train_dataset, model, optimizer, criterion)
+print('Choose batch_size: ', args.batch_size)
+train_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=True, num_workers=4)
+valid_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=False, num_workers=4)
 
 def train(data_loader):
     model.train()
@@ -95,15 +131,14 @@ def evaluate(data_loader):
         dices, iou = meter.get_metrics() 
         dice, dice_neg, dice_pos = dices
         torch.cuda.empty_cache()
+
         return total_loss/len(data_loader), iou, dice, dice_neg, dice_pos
-
-
 best_loss = float("inf")
 for epoch in range(args.num_epoch):
     start_time = time.time()
     loss_train = train(train_loader)
     print('[TRAIN] Epoch: {}| Loss: {}| Time: {}'.format(epoch, loss_train, time.time()-start_time))
-    if (epoch+1)%5==0:
+    if (epoch+1)%3==0:
         start_time = time.time()
         val_loss, iou, dice, dice_neg, dice_pos = evaluate(valid_loader)
         scheduler.step(val_loss)

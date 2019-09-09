@@ -1,4 +1,12 @@
 from sagemaker.pytorch import PyTorch
+import argparse 
+
+parser = argparse.ArgumentParser(description='Semantic Segmentation')
+parser.add_argument('--batch_size', default=16, type=int)
+parser.add_argument('--encoder', default="resnet50", type=str)
+parser.add_argument('--decoder', default="Unet", type=str)  
+parser.add_argument('--encoder_weights', default="imagenet", type=str) 
+args = parser.parse_args()
 
 # ref: https://aws.amazon.com/sagemaker/pricing/instance-types/
 instance_type = 'ml.p3.2xlarge'
@@ -20,7 +28,7 @@ pytorch_estimator = PyTorch(entry_point='train.py',
                             train_max_run=5*86400,  # 86400s ~ 1day
                             framework_version='1.1.0',
                             py_version="py3",
-                            hyperparameters = {'encoder': "resnet50", 'decoder': "Unet", 'batch_size': 16, "encoder_weights": "imagenet"}
+                            hyperparameters = {'encoder': "{}".format(args.encoder), 'decoder': "{}".format(args.decoder), 'batch_size': args.batch_size, "encoder_weights": "{}".format(args.encoder_weights)}
                             )
 
 pytorch_estimator.fit() 

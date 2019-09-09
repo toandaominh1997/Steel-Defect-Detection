@@ -75,7 +75,6 @@ class SteelDataset(Dataset):
         df['ClassId'] = df['ClassId'].astype(int)
         df = df.pivot(index='ImageId',columns='ClassId',values='EncodedPixels')
         df['defects'] = df.count(axis=1)
-        # df, non_df = train_test_split(df, test_size=0.98) 
         return df
     def make_mask(self, row_id, df):
         fname = df.iloc[row_id].name
