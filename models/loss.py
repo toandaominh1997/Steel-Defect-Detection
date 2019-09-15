@@ -6,6 +6,7 @@ class Criterion(_Loss):
         super(Criterion, self).__init__(size_average, reduce, reduction)
         self.mode = mode 
     def forward(self, logit, target, weight=None):
+        loss = 0
         if self.mode =='cls':
             batch_size,num_class, H,W = logit.shape
             logit = logit.view(batch_size,num_class)
@@ -24,4 +25,4 @@ class Criterion(_Loss):
                 neg_sum = neg.sum().item() + 1e-12
                 loss = (weight[1]*pos*loss/pos_sum + weight[0]*neg*loss/neg_sum).sum()
 
-            return loss
+        return loss
