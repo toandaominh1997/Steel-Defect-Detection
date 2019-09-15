@@ -48,7 +48,10 @@ class Metric(object):
             self.tn.append(tn*num_neg)
             self.tp.append(list(np.array(tp)*np.array(num_pos)))
         else:
-            probs = torch.sigmoid(outputs)
+            # probs = torch.sigmoid(outputs)
+            probs = torch.softmax(outputs, 1)
+            probs = self.one_hot_encode_predict(probs)
+            targets = self.one_hot_encode_truth(targets)
             dice, dice_neg, dice_pos, _, _ = self.metric(probs, targets, self.base_threshold)
             self.base_dice_scores.append(dice)
             self.dice_pos_scores.append(dice_pos)
@@ -79,15 +82,17 @@ class Metric(object):
         '''probability and truth must be torch tensors'''
         batch_size = len(truth)
         with torch.no_grad():
+
             probability = probability.view(batch_size, -1)
             truth = truth.view(batch_size, -1)
-            assert(probability.shape == truth.shape)
+            assert(probability.shape == truth.shape) 
 
-            p = (probability > threshold).float()
-            t = (truth > 0.5).float()
+            p = (probability > threshold).float() 
+            t = (truth > 0.5).float() 
 
             t_sum = t.sum(-1)
             p_sum = p.sum(-1)
+
             neg_index = torch.nonzero(t_sum == 0)
             pos_index = torch.nonzero(t_sum >= 1)
 
@@ -96,7 +101,7 @@ class Metric(object):
 
             dice_neg = dice_neg[neg_index]
             dice_pos = dice_pos[pos_index]
-            dice = torch.cat([dice_pos, dice_neg])
+            dice = torch.cat([dice_pos, dice_neg]) 
 
             dice_neg = np.nan_to_num(dice_neg.mean().item(), 0)
             dice_pos = np.nan_to_num(dice_pos.mean().item(), 0)
@@ -106,6 +111,25 @@ class Metric(object):
             num_pos = len(pos_index)
 
         return dice, dice_neg, dice_pos, num_neg, num_pos
+    
+    def one_hot_encode_truth(self, truth, num_class=4):
+        one_hot = truth.repeat(1,num_class,1,1)
+        arange  = torch.arange(1,num_class+1).view(1,num_class,1,1).to(truth.device)
+        one_hot = (one_hot == arange).float()
+        return one_hot
+
+
+    def one_hot_encode_predict(self, predict, num_class=4):
+        value, index = torch.max(predict, dim=1, keepdim=True)
+
+        value  = value.repeat(1,num_class,1,1)
+        index  = index.repeat(1,num_class,1,1)
+        arange = torch.arange(1,num_class+1).view(1,num_class,1,1).to(predict.device)
+
+        one_hot = (index == arange).float()
+        value = value*one_hot
+        return value
+
     def compute_iou_batch(self, outputs, labels, classes=None):
         '''computes mean iou for a batch of ground truth masks and predicted masks'''
         ious = []

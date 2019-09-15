@@ -18,7 +18,6 @@ class Criterion(loss._Loss):
 
             if weight is None:
                 loss = loss.mean()
-
             else:
                 pos = (truth>0.5).float()
                 neg = (truth<0.5).float()

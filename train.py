@@ -28,12 +28,14 @@ parser.add_argument('--num_class', default=5, type=int)
 parser.add_argument('--encoder', default="resnet50", type=str)
 parser.add_argument('--decoder', default="Unet", type=str)  
 parser.add_argument('--encoder_weights', default="imagenet", type=str) 
-parser.add_argument('--mode', default='segmentation', type=str)
+parser.add_argument('--mode', default='cls', type=str)
 args = parser.parse_args()
 
 if args.mode == 'cls':
     arch='classification'
+    args.num_class = 4
 else:
+    args.num_class = 5
     arch = '{}_{}_{}'.format(args.mode, args.encoder, args.decoder)
 
 train_dataset = SteelDataset(root_dataset = args.root_dataset, list_data = args.list_train, phase='train')
@@ -74,15 +76,16 @@ def choosebatchsize(dataset, model, optimizer, criterion):
             batch_size = batch_size - 4 
             if batch_size<=0:
                 batch_size = 2
-            data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=False, num_workers=4, collate_fn=null_collate, pin_memory = True) 
+            data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=False, num_workers=4, pin_memory = True) 
             dataloader_iterator = iter(data_loader) 
 
-args.batch_size = choosebatchsize(train_dataset, model, optimizer, criterion)
-args.batch_size = args.batch_size - 1
-print('Choose batch_size: ', args.batch_size)
+# args.batch_size = choosebatchsize(train_dataset, model, optimizer, criterion)
+# args.batch_size = args.batch_size - 1
+# print('Choose batch_size: ', args.batch_size)
+args.batch_size = 2
 
-train_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=True, num_workers=4, collate_fn=null_collate, pin_memory = True)
-valid_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=False, num_workers=4, collate_fn=null_collate, pin_memory = True)
+train_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=True, num_workers=4, pin_memory = True)
+valid_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=False, num_workers=4, pin_memory = True)
 
 def train(data_loader):
     model.train()
@@ -103,7 +106,7 @@ def train(data_loader):
     return total_loss/len(data_loader)
 
 def evaluate(data_loader):
-    meter = Metric()
+    meter = Metric(mode=args.mode)
     model.eval()
     total_loss = 0
     with torch.no_grad():
@@ -131,7 +134,7 @@ for epoch in range(args.num_epoch):
     start_time = time.time()
     loss_train = train(train_loader)
     print('[TRAIN] Epoch: {}| Loss: {}| Time: {}'.format(epoch, loss_train, time.time()-start_time))
-    if (epoch+1)%3==0:
+    if (epoch+1)%1==0:
         start_time = time.time()
         if args.mode == 'cls':
             val_loss, tn, tp = evaluate(valid_loader)
@@ -151,6 +154,6 @@ for epoch in range(args.num_epoch):
                 "status": status,
                 "epoch": epoch,
                 "arch": arch,
-                "state_dict": model.state_dict(),
+                "state_dict": model.state_dict()
             }
             torch.save(state, '/opt/ml/model/{}_{}_checkpoint_{}.pth'.format(args.encoder, args.decoder, epoch))
