@@ -9,11 +9,11 @@ from optimizers import RAdam
 from utils import Meter 
 from tqdm import tqdm 
 import torch.optim as optim
-from modules import segmentation_models as smp
+from models.model import Model
 import time 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from modelss import ModelBuilder
 import torchvision
+from models.loss import Criterion
 
 
 parser = argparse.ArgumentParser(description='Semantic Segmentation')
@@ -23,44 +23,26 @@ parser.add_argument('--batch_size', default=16, type=int)
 parser.add_argument('--lr', default=5e-4, type=float)
 parser.add_argument('--num_epoch', default=200, type=int)
 parser.add_argument('--num_class', default=4, type=int)
+
 parser.add_argument('--encoder', default="resnet50", type=str)
 parser.add_argument('--decoder', default="Unet", type=str)  
 parser.add_argument('--encoder_weights', default="imagenet", type=str) 
 parser.add_argument('--mode', default='segmentation', type=str)
 args = parser.parse_args()
 
-print('Encoder: {}, Decoder: {}'.format(args.encoder, args.decoder))
-
-# net_encoder = ModelBuilder.build_encoder(
-#         arch="hrnetv2",
-#         fc_dim=720,
-#         weights='')
-# net_decoder = ModelBuilder.build_decoder(
-#     arch="c1",
-#     fc_dim=720,
-#     num_class=4,
-#     weights='')
-
-
-modules = {
-    "{}_Unet".format(args.encoder): smp.Unet('{}'.format(args.encoder), classes=args.num_class, activation='softmax', encoder_weights=args.encoder_weights),
-    "{}_Linknet".format(args.encoder): smp.Linknet('{}'.format(args.encoder), classes=args.num_class, activation='softmax', encoder_weights=args.encoder_weights),
-    "{}_FPN".format(args.encoder): smp.FPN('{}'.format(args.encoder), classes=args.num_class, activation='softmax', encoder_weights=args.encoder_weights),
-    "{}_PSPNet".format(args.encoder): smp.PSPNet('{}'.format(args.encoder), classes=args.num_class, activation='softmax', encoder_weights=args.encoder_weights),
-    # "hrnetv2_c1": nn.Sequential(net_encoder, net_decoder)
-}
+if args.mode == 'cls':
+    arch='classification'
+else:
+    arch = '{}_{}_{}'.format(args.mode, args.encoder, args.decoder)
 
 train_dataset = SteelDataset(root_dataset = args.root_dataset, list_data = args.list_train, phase='train')
 valid_dataset = SteelDataset(root_dataset = args.root_dataset, list_data = args.list_train, phase='valid')
 
-if args.mode == 'segmentation':
-    model = torchvision.models.segmentation.fcn_resnet50(pretrained=False, num_classes=4)
-    criterion = nn.BCEWithLogitsLoss()
-elif args.mode == 'classification':
-    pass
 
-
+model = Model(num_class=args.num_class,model=args.mode)
 model = model.cuda()
+criterion = Criterion(mode=args.mode)
+
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
 scheduler = ReduceLROnPlateau(optimizer, mode="min", patience=3, verbose=True)
 
@@ -76,13 +58,13 @@ def choosebatchsize(dataset, model, optimizer, criterion):
             image = image.cuda()
             target = target.cuda() 
             outputs = model(image) 
-            loss = criterion(outputs['out'], target) 
+            loss = criterion(outputs, target) 
             loss.backward() 
             optimizer.zero_grad() 
             optimizer.step() 
             image = None 
             target = None 
-            outputs['out'] = None  
+            outputs = None  
             loss = None
             torch.cuda.empty_cache() 
             return batch_size 
@@ -110,8 +92,8 @@ def train(data_loader):
         img = img.cuda()
         segm = segm.cuda()
         outputs = model(img)
-        loss = criterion(outputs['out'], segm)
-        loss.backward()
+        loss = criterion(outputs, segm)
+        (loss/accumulation_steps).backward()
         if (idx + 1 ) % accumulation_steps == 0:
             optimizer.step() 
             optimizer.zero_grad() 
@@ -120,7 +102,7 @@ def train(data_loader):
     return total_loss/len(data_loader)
 
 def evaluate(data_loader):
-    meter = Meter('eval', 0)
+    meter = Meter()
     model.eval()
     total_loss = 0
     with torch.no_grad():
@@ -128,15 +110,19 @@ def evaluate(data_loader):
             img = img.cuda() 
             segm = segm.cuda() 
             outputs = model(img) 
-            loss = criterion(outputs['out'], segm)
+            loss = criterion(outputs, segm)
             outputs = outputs.detach().cpu()
             segm = segm.detach().cpu() 
             meter.update(segm, outputs) 
             total_loss += loss.item()
-        dices, iou = meter.get_metrics() 
-        dice, dice_neg, dice_pos = dices 
-        torch.cuda.empty_cache() 
-        return total_loss/len(data_loader), iou, dice, dice_neg, dice_pos
+        if args.mode == 'cls':
+            tn, tp = meter.get_metrics() 
+            return total_loss/len(data_loader), tn, tp 
+        else:
+            dices, iou = meter.get_metrics() 
+            dice, dice_neg, dice_pos = dices 
+            torch.cuda.empty_cache() 
+            return total_loss/len(data_loader), iou, dice, dice_neg, dice_pos
 
 
 best_loss = float("inf")
@@ -146,9 +132,14 @@ for epoch in range(args.num_epoch):
     print('[TRAIN] Epoch: {}| Loss: {}| Time: {}'.format(epoch, loss_train, time.time()-start_time))
     if (epoch+1)%3==0:
         start_time = time.time()
-        val_loss, iou, dice, dice_neg, dice_pos = evaluate(valid_loader)
+        if args.mode == 'cls':
+            val_loss, tn, tp = evaluate(valid_loader)
+            print("['EVAL'] Epoch: {}|Loss: {}| tn: {}| tp: {}| time: {}".format(epoch, val_loss, tn, tp, time.time()-start_time))
+        else:
+            val_loss, iou, dice, dice_neg, dice_pos = evaluate(valid_loader)
+            print("['EVAL'] Epoch: {}|Loss: {}| IoU: {}| dice: {}| dice_neg: {}| dice_pos: {}| time: {}".format(epoch, val_loss, iou, dice, dice_neg, dice_pos, time.time()-start_time))
         scheduler.step(val_loss)
-        print("['EVAL'] Epoch: {}|Loss: {}| IoU: {}| dice: {}| dice_neg: {}| dice_pos: {}| time: {}".format(epoch, val_loss, iou, dice, dice_neg, dice_pos, time.time()-start_time))
+        
         if val_loss < best_loss or (epoch+1)%10==0:
             status = "not best loss"
             if val_loss < best_loss:
@@ -157,7 +148,7 @@ for epoch in range(args.num_epoch):
             state = {
                 "status": status,
                 "epoch": epoch,
-                "arch": "{}_{}".format(args.encoder, args.decoder),
+                "arch": arch,
                 "state_dict": model.state_dict(),
             }
             torch.save(state, '/opt/ml/model/{}_{}_checkpoint_{}.pth'.format(args.encoder, args.decoder, epoch))

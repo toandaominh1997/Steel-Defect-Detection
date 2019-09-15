@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
-from models import Resnet34Classification
+from models.model_cls import Resnet34Classification
 from modules import segmentation_models as smp
 from modules import ModelBuilder
+
 class Model(nn.Module):
     def __init__(self, 
             num_class=4, 
@@ -33,10 +34,9 @@ class Model(nn.Module):
             elif decoder=='PSPNet':
                 self.models = smp.PSPNet(encoder_name=encoder, classes=num_class, activation=activation, encoder_weights=encoder_weights)
             elif decoder=='hrnet':
-                self.models = nn.Sequential(list(net_encoder, net_decoder))
+                self.models = nn.Sequential(net_encoder, net_decoder)
             
     def forward(self, inputs):
         return self.models(inputs)
 
 
-inputs = torch.randn(2, 3, 256, 1600)

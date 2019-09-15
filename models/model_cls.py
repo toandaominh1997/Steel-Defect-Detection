@@ -35,7 +35,3 @@ def criterion_cls(logit, truth, weight=None):
         neg_sum = neg.sum().item() + 1e-12
         loss = (weight[1]*pos*loss/pos_sum + weight[0]*neg*loss/neg_sum).sum()
     return loss 
-model = Resnet34Classification(num_class=4)
-inputs = torch.randn(2, 3, 256, 1600)
-output = model(inputs)
-print(output.size())
