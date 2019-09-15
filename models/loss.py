@@ -6,7 +6,7 @@ class Criterion(loss._Loss):
     def __init__(self, size_average=None, reduce=None, reduction='mean', mode='cls'):
         super(Criterion, self).__init__(size_average, reduce, reduction)
         self.mode = mode 
-    def forward(self, logit, target, weight=None):
+    def forward(self, logit, truth, weight=None):
         loss = 0
         if self.mode =='cls':
             batch_size,num_class, H,W = logit.shape
@@ -28,7 +28,7 @@ class Criterion(loss._Loss):
         else:
             logit = logit.permute(0, 2, 3, 1).contiguous().view(-1, 5)
             truth = truth.permute(0, 2, 3, 1).contiguous().view(-1)
-            
+
             if weight is not None: weight = torch.FloatTensor([1]+weight).cuda()
             loss = F.cross_entropy(logit, truth, weight=weight, reduction='none')
 

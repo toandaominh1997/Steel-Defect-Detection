@@ -6,7 +6,7 @@ from datasets import SteelDataset
 from torch.utils.data import DataLoader 
 import torch.nn as nn 
 from optimizers import RAdam 
-from utils import Meter 
+from utils import Metric
 from tqdm import tqdm 
 import torch.optim as optim
 from models.model import Model
@@ -14,6 +14,7 @@ import time
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import torchvision
 from models.loss import Criterion
+from datasets.dataset import null_collate
 
 
 parser = argparse.ArgumentParser(description='Semantic Segmentation')
@@ -22,7 +23,7 @@ parser.add_argument('--list_train', default='./data/train.csv', type=str)
 parser.add_argument('--batch_size', default=16, type=int)
 parser.add_argument('--lr', default=5e-4, type=float)
 parser.add_argument('--num_epoch', default=200, type=int)
-parser.add_argument('--num_class', default=4, type=int)
+parser.add_argument('--num_class', default=5, type=int)
 
 parser.add_argument('--encoder', default="resnet50", type=str)
 parser.add_argument('--decoder', default="Unet", type=str)  
@@ -39,7 +40,7 @@ train_dataset = SteelDataset(root_dataset = args.root_dataset, list_data = args.
 valid_dataset = SteelDataset(root_dataset = args.root_dataset, list_data = args.list_train, phase='valid')
 
 
-model = Model(num_class=args.num_class,model=args.mode)
+model = Model(num_class=args.num_class,mode=args.mode)
 model = model.cuda()
 criterion = Criterion(mode=args.mode)
 
@@ -48,7 +49,7 @@ scheduler = ReduceLROnPlateau(optimizer, mode="min", patience=3, verbose=True)
 
 def choosebatchsize(dataset, model, optimizer, criterion):
     batch_size = 33
-    data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=False, num_workers=4)
+    data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=False, num_workers=4, collate_fn=null_collate, pin_memory = True)
     dataloader_iterator = iter(data_loader)
     model = model.cuda()
     model.train()
@@ -73,15 +74,15 @@ def choosebatchsize(dataset, model, optimizer, criterion):
             batch_size = batch_size - 4 
             if batch_size<=0:
                 batch_size = 2
-            data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=False, num_workers=4) 
+            data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=False, num_workers=4, collate_fn=null_collate, pin_memory = True) 
             dataloader_iterator = iter(data_loader) 
 
 args.batch_size = choosebatchsize(train_dataset, model, optimizer, criterion)
 args.batch_size = args.batch_size - 1
 print('Choose batch_size: ', args.batch_size)
 
-train_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=True, num_workers=4)
-valid_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=False, num_workers=4)
+train_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=True, num_workers=4, collate_fn=null_collate, pin_memory = True)
+valid_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=False, num_workers=4, collate_fn=null_collate, pin_memory = True)
 
 def train(data_loader):
     model.train()
@@ -102,7 +103,7 @@ def train(data_loader):
     return total_loss/len(data_loader)
 
 def evaluate(data_loader):
-    meter = Meter()
+    meter = Metric()
     model.eval()
     total_loss = 0
     with torch.no_grad():
@@ -144,7 +145,8 @@ for epoch in range(args.num_epoch):
             status = "not best loss"
             if val_loss < best_loss:
                 status = "best loss"
-            best_loss = val_loss
+                best_loss = val_loss
+                        
             state = {
                 "status": status,
                 "epoch": epoch,

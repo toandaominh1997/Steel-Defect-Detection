@@ -99,9 +99,45 @@ class SteelDataset(Dataset):
         img = augmented['image']
         mask = augmented['mask'] # 1x256x1600x4
         mask = mask[0].permute(2, 0, 1) # 1x4x256x1600
-        return img, mask
+        label = (mask.reshape(4, -1).sum(1)>0).astype(np.int32)
+        label = torch.from_numpy(label)
+        return img, mask, label
 
     def __len__(self):
         return len(self.df)
     
+
+def image_to_input(image,rbg_mean,rbg_std):#, rbg_mean=[0,0,0], rbg_std=[1,1,1]):
+    input = image.astype(np.float32)
+    input = input[...,::-1]/255
+    input = input.transpose(0,3,1,2)
+    input[:,0] = (input[:,0]-rbg_mean[0])/rbg_std[0]
+    input[:,1] = (input[:,1]-rbg_mean[1])/rbg_std[1]
+    input[:,2] = (input[:,2]-rbg_mean[2])/rbg_std[2]
+    return input
+
+def null_collate(batch):
+    batch_size = len(batch)
+    input = []
+    truth_mask  = []
+
+    for b in range(batch_size):
+        input.append(batch[b][0])
+
+        mask  = batch[b][1]
+        label = (mask.reshape(4,-1).sum(1)>0).astype(np.int32)
+
+        num_class,H,W = mask.shape
+        mask = mask.transpose(1,2,0)*[1,2,3,4] 
+        mask = mask.reshape(-1,4) 
+        mask = mask.max(-1).reshape(1,H,W) 
+        truth_mask.append(mask)
+
+    input = np.stack(input)
+    # input = image_to_input(input, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    input = torch.from_numpy(input).float()
+    truth_mask = np.stack(truth_mask)
+    truth_mask = torch.from_numpy(truth_mask).long()
+    return input, truth_mask
+
 
