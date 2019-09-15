@@ -13,6 +13,8 @@ from modules import segmentation_models as smp
 import time 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from modelss import ModelBuilder
+import torchvision
+
 
 parser = argparse.ArgumentParser(description='Semantic Segmentation')
 parser.add_argument('--root_dataset', default='./data/train_images', type=str, help='config file path (default: None)')
@@ -24,6 +26,7 @@ parser.add_argument('--num_class', default=4, type=int)
 parser.add_argument('--encoder', default="resnet50", type=str)
 parser.add_argument('--decoder', default="Unet", type=str)  
 parser.add_argument('--encoder_weights', default="imagenet", type=str) 
+parser.add_argument('--mode', default='segmentation', type=str)
 args = parser.parse_args()
 
 print('Encoder: {}, Decoder: {}'.format(args.encoder, args.decoder))
@@ -45,24 +48,24 @@ modules = {
     "{}_FPN".format(args.encoder): smp.FPN('{}'.format(args.encoder), classes=args.num_class, activation='softmax', encoder_weights=args.encoder_weights),
     "{}_PSPNet".format(args.encoder): smp.PSPNet('{}'.format(args.encoder), classes=args.num_class, activation='softmax', encoder_weights=args.encoder_weights),
     # "hrnetv2_c1": nn.Sequential(net_encoder, net_decoder)
-
 }
+
 train_dataset = SteelDataset(root_dataset = args.root_dataset, list_data = args.list_train, phase='train')
-
-
-
 valid_dataset = SteelDataset(root_dataset = args.root_dataset, list_data = args.list_train, phase='valid')
 
+if args.mode == 'segmentation':
+    model = torchvision.models.segmentation.fcn_resnet50(pretrained=False, num_classes=4)
+    criterion = nn.BCEWithLogitsLoss()
+elif args.mode == 'classification':
+    pass
 
 
-criterion = nn.BCEWithLogitsLoss()
-model = modules["{}_{}".format(args.encoder, args.decoder)]
 model = model.cuda()
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
 scheduler = ReduceLROnPlateau(optimizer, mode="min", patience=3, verbose=True)
 
 def choosebatchsize(dataset, model, optimizer, criterion):
-    batch_size = 32
+    batch_size = 33
     data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=False, num_workers=4)
     dataloader_iterator = iter(data_loader)
     model = model.cuda()
@@ -71,28 +74,30 @@ def choosebatchsize(dataset, model, optimizer, criterion):
         try:
             image, target = next(dataloader_iterator)
             image = image.cuda()
-            target = target.cuda()
-            outputs = model(image)
-            loss = criterion(outputs, target)
-            loss.backward()
-            optimizer.zero_grad()
-            optimizer.step()
+            target = target.cuda() 
+            outputs = model(image) 
+            loss = criterion(outputs['out'], target) 
+            loss.backward() 
+            optimizer.zero_grad() 
+            optimizer.step() 
             image = None 
-            target = None
-            outputs = None 
-            loss = None 
-            torch.cuda.empty_cache()
-            return batch_size
-        except RuntimeError as e:
-            print('Runtime Error {} at batch size: {}'.format(e, batch_size))
-            batch_size = batch_size - 4
+            target = None 
+            outputs['out'] = None  
+            loss = None
+            torch.cuda.empty_cache() 
+            return batch_size 
+        except RuntimeError as e: 
+            print('Runtime Error {} at batch size: {}'.format(e, batch_size)) 
+            batch_size = batch_size - 4 
             if batch_size<=0:
-                batch_size = 1
-            data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=False, num_workers=4)
-            dataloader_iterator = iter(data_loader)
+                batch_size = 2
+            data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=False, num_workers=4) 
+            dataloader_iterator = iter(data_loader) 
 
 args.batch_size = choosebatchsize(train_dataset, model, optimizer, criterion)
+args.batch_size = args.batch_size - 1
 print('Choose batch_size: ', args.batch_size)
+
 train_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=True, num_workers=4)
 valid_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle=False, num_workers=4)
 
@@ -105,12 +110,12 @@ def train(data_loader):
         img = img.cuda()
         segm = segm.cuda()
         outputs = model(img)
-        loss = criterion(outputs, segm)
+        loss = criterion(outputs['out'], segm)
         loss.backward()
         if (idx + 1 ) % accumulation_steps == 0:
-            optimizer.step()
-            optimizer.zero_grad()
-        total_loss += loss.item()
+            optimizer.step() 
+            optimizer.zero_grad() 
+        total_loss += loss.item() 
     torch.cuda.empty_cache()
     return total_loss/len(data_loader)
 
@@ -123,16 +128,17 @@ def evaluate(data_loader):
             img = img.cuda() 
             segm = segm.cuda() 
             outputs = model(img) 
-            loss = criterion(outputs, segm)
+            loss = criterion(outputs['out'], segm)
             outputs = outputs.detach().cpu()
             segm = segm.detach().cpu() 
             meter.update(segm, outputs) 
             total_loss += loss.item()
         dices, iou = meter.get_metrics() 
-        dice, dice_neg, dice_pos = dices
-        torch.cuda.empty_cache()
-
+        dice, dice_neg, dice_pos = dices 
+        torch.cuda.empty_cache() 
         return total_loss/len(data_loader), iou, dice, dice_neg, dice_pos
+
+
 best_loss = float("inf")
 for epoch in range(args.num_epoch):
     start_time = time.time()

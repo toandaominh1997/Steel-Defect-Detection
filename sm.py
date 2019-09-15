@@ -2,7 +2,7 @@ from sagemaker.pytorch import PyTorch
 import argparse 
 
 parser = argparse.ArgumentParser(description='Semantic Segmentation')
-parser.add_argument('--batch_size', default=16, type=int)
+parser.add_argument('--batch_size', default=32, type=int)
 parser.add_argument('--encoder', default="resnet50", type=str)
 parser.add_argument('--decoder', default="Unet", type=str)  
 parser.add_argument('--encoder_weights', default="imagenet", type=str) 
