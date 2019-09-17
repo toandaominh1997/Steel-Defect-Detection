@@ -24,7 +24,8 @@ from albumentations import (
     CLAHE,
     RandomBrightnessContrast,    
     RandomGamma,
-    Normalize 
+    Normalize,
+    Resize
 )
 from albumentations.torch import ToTensor
 from torchvision import transforms 
@@ -56,6 +57,7 @@ def get_transforms(phase):
         )
     list_transforms.extend(
         [
+            Resize(height=128, width=800,  interpolation=cv2.INTER_NEAREST),
             Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), p=1),
             ToTensor(),
         ]
@@ -105,7 +107,7 @@ class SteelDataset(Dataset):
             mask = mask.float()
         else:
             mask = mask*torch.tensor([1, 2, 3, 4], dtype=torch.float32)
-            mask, _ = torch.max(mask, -1)
+            mask, _ = torch.max(mask, -1) 
             mask = mask.long()
         return img, mask
 

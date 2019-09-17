@@ -20,7 +20,7 @@ class Model(nn.Module):
         net_decoder = ModelBuilder.build_decoder(
             arch="c1",
             fc_dim=720,
-            num_class=4,
+            num_class=num_class,
             weights='')
         if mode=='cls':
             self.models = Resnet34Classification(num_class=num_class)
@@ -34,6 +34,7 @@ class Model(nn.Module):
             elif decoder=='PSPNet':
                 self.models = smp.PSPNet(encoder_name=encoder, classes=num_class, activation=activation, encoder_weights=encoder_weights)
             elif decoder=='hrnet':
+                print('HRNET')
                 self.models = nn.Sequential(net_encoder, net_decoder)
             
     def forward(self, inputs):

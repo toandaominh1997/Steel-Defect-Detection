@@ -2,7 +2,7 @@ sklearn
 torch 
 torchvision
 opencv-python
-albumentations
+albumentations==0.3.1
 pandas
 pretrainedmodels
 imgaug
