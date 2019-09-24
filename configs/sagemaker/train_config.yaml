@@ -1,5 +1,6 @@
 SEED: 42
-DEVICE: [6]
+DEVICE: cuda
+DEVICE_LIST: [0]
 # DATASET
 ROOT: ./data/train_images/
 DATA_TRAIN: ./data/train.csv

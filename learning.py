@@ -16,11 +16,10 @@ class Learning(object):
             save_period,
             checkpoint_dir,
             resume_path):
-        # self.device, device_ids = self._prepare_device(device)
-        self.device = device
+        self.device, device_ids = self._prepare_device(device)
         self.model = model.to(self.device)
-        # if len(device_ids) > 1:
-        #     self.model = torch.nn.DataParallel(model, device_ids=device_ids)
+        if len(device_ids) > 1:
+            self.model = torch.nn.DataParallel(model, device_ids=device_ids)
         self.optimizer = optimizer
         self.criterion = criterion
         self.num_epoch = num_epoch 
@@ -133,7 +132,11 @@ class Learning(object):
         self.model.load_state_dict(checkpoint['state_dict'])
 
         print("Checkpoint loaded. Resume training from epoch {}".format(self.start_epoch))
-    def _prepare_device(self, n_gpu_use):
+    def _prepare_device(self, device):
+        if type(device)==int:
+            n_gpu_use = device
+        else:
+            n_gpu_use = len(device)
         n_gpu = torch.cuda.device_count()
         if n_gpu_use > 0 and n_gpu == 0:
             print("Warning: There\'s no GPU available on this machine, training will be performed on CPU.")
@@ -141,6 +144,17 @@ class Learning(object):
         if n_gpu_use > n_gpu:
             print("Warning: The number of GPU\'s configured to use is {}, but only {} are available on this machine.".format(n_gpu_use, n_gpu))
             n_gpu_use = n_gpu
-        device = torch.device('cuda:0' if n_gpu_use > 0 else 'cpu')
-        list_ids = list(range(n_gpu_use))
+        if type(device)==int:
+            device = torch.device('cuda:0' if n_gpu_use > 0 else 'cpu')
+            list_ids = list(range(n_gpu_use))
+        elif len(device) == 1:
+            list_ids = device
+            if device[0] >= 0 and device[0] < n_gpu:    
+                device = torch.device('cuda:{}'.format(device[0]))
+            else:
+                device = torch.device('cuda:0')
+        else:
+            list_ids = device
+            device = torch.device('cuda:{}'.format(device[0]) if n_gpu_use > 0 else 'cpu')
+            
         return device, list_ids

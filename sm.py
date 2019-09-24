@@ -11,10 +11,7 @@ name_list = ["nick","hades","kizd","vanle","nick","myl","kyocera","erikson","ken
 # name_list = ["vanle-segmentation"]
 random.shuffle(name_list)
 print(">>> start <<<")
-encoder = 'se_resnext50_32x4d'
-decoder = 'FPN'
 
-print('Sagemaker: {}_{}'.format(encoder, decoder))
 
 pytorch_estimator = PyTorch(entry_point='train.py',
                            source_dir=source_dir,
@@ -29,7 +26,6 @@ pytorch_estimator = PyTorch(entry_point='train.py',
                            base_job_name= name_list[0]+"-test",
                            train_max_run=10*86400,
                            framework_version='1.1.0',
-                           py_version="py3",
-                           hyperparameters={'encoder': encoder, 'decoder': decoder})
+                           py_version="py3")
 # pytorch_estimator.
 pytorch_estimator.fit() 
