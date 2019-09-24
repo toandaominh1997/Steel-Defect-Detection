@@ -12,7 +12,7 @@ name_list = ["nick","hades","kizd","vanle","nick","myl","kyocera","erikson","ken
 random.shuffle(name_list)
 print(">>> start <<<")
 encoder = 'se_resnext50_32x4d'
-decoder = 'hrnet'
+decoder = 'FPN'
 
 print('Sagemaker: {}_{}'.format(encoder, decoder))
 

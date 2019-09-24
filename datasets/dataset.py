@@ -101,19 +101,20 @@ class SteelDataset(Dataset):
         augmented = self.transforms(image=img, mask=mask)
         img = augmented['image']
         mask = augmented['mask'] # 1x256x1600x4
-        if self.mode == 'cls':
-            mask = mask[0].permute(2, 0, 1) # 1x4x256x1600
-            mask = (mask.view(4, -1).sum(1)>0)
-            mask = mask.float()
-        else:
-            mask = mask*torch.tensor([1, 2, 3, 4], dtype=torch.float32)
-            mask, _ = torch.max(mask, -1) 
-            mask = mask.long()
+        mask = mask[0].permute(2, 0, 1) # 1x4x256x1600
+        # if self.mode == 'cls':
+        #     mask = mask[0].permute(2, 0, 1) # 1x4x256x1600
+        #     mask = (mask.view(4, -1).sum(1)>0)
+        #     mask = mask.float()
+        # else:
+        #     mask = mask*torch.tensor([1, 2, 3, 4], dtype=torch.float32)
+        #     mask, _ = torch.max(mask, -1) 
+        #     mask = mask.long()
         return img, mask
 
     def __len__(self):
-        return len(self.df)
-        # return 100
+        # return len(self.df)
+        return 10
     
 
 def image_to_input(image,rbg_mean,rbg_std):#, rbg_mean=[0,0,0], rbg_std=[1,1,1]):

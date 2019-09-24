@@ -26,6 +26,7 @@ class Model(nn.Module):
             self.models = Resnet34Classification(num_class=num_class)
         else:
             if decoder=='Unet':
+                print('Unet')
                 self.models = smp.Unet(encoder_name=encoder, classes=num_class, activation=activation, encoder_weights=encoder_weights)
             elif decoder=='Linknet':
                 self.models = smp.Linknet(encoder_name=encoder, classes=num_class, activation=activation, encoder_weights=encoder_weights)
