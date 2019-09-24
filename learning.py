@@ -1,6 +1,7 @@
 from tqdm import tqdm
 import torch
 from utils import AverageMetric
+import os
 class Learning(object):
     def __init__(self,
             model,
@@ -54,7 +55,7 @@ class Learning(object):
                 print('EARLY STOPPING')
                 break
     def _train_epoch(self, loader):
-        self.model.train()        
+        self.model.train()
         self.optimizer.zero_grad()
         current_loss_mean = 0.0
         for batch_idx, (batch_imgs, batch_labels) in enumerate(tqdm(loader)):
@@ -62,7 +63,6 @@ class Learning(object):
             outputs = self.model(batch_imgs)
             loss = self.criterion(outputs, batch_labels)
             loss.backward()
-
             if (batch_idx+1) % self.grad_accumulation == 0:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clipping)
                 self.optimizer.step()
@@ -107,11 +107,11 @@ class Learning(object):
             'state_dict': self.get_state_dict(self.model),
             'best_score': self.best_score
         }
-        filename = str(self.checkpoint_dir + 'checkpoint-epoch{}.pth'.format(epoch))
+        filename = os.path.join(self.checkpoint_dir, 'checkpoint_epoch{}.pth'.format(epoch))
         torch.save(state, filename)
         print("Saving checkpoint: {} ...".format(filename))
         if save_best:
-            best_path = str(self.checkpoint_dir + 'model_best.pth')
+            best_path = os.path.join(self.checkpoint_dir, 'model_best.pth')
             torch.save(state, best_path)
             print("Saving current best: model_best.pth ...")
     @staticmethod
@@ -125,7 +125,7 @@ class Learning(object):
     def _resume_checkpoint(self, resume_path):
         resume_path = str(resume_path)
         print("Loading checkpoint: {} ...".format(resume_path))
-        checkpoint = torch.load(resume_path)
+        checkpoint = torch.load(resume_path, map_location=lambda storage, loc: storage)
         self.start_epoch = checkpoint['epoch'] + 1
         self.best_epoch = checkpoint['epoch']
         self.best_score = checkpoint['best_score']

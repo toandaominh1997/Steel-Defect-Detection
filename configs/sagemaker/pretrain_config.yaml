@@ -1,5 +1,5 @@
 SEED: 42
-DEVICE: [6]
+DEVICE: [0]
 # DATASET
 ROOT: ./data/train_images/
 DATA_TRAIN: ./data/train.csv
@@ -39,20 +39,18 @@ VALID_DATALOADER:
  CLASS: DataLoader
  ARGS:
   batch_size: 2
-  shuffle: True
+  shuffle: False
   num_workers: 8
   pin_memory: True
   
 MODEL:
- PY: models.model
- CLASS: Model
+ PY: modules.segmentation_models.unet.model
+ CLASS: Unet
  ARGS:
-  num_class: 4
-  encoder: resnet34
-  decoder: Unet
+  classes: 4
+  encoder_name: se_resnext50_32x4d
   activation: softmax
   encoder_weights: imagenet
-  mode: non-cls
 
 
 CRITERION:
@@ -82,11 +80,11 @@ SCHEDULER:
   min_lr: 0.0000001
 
 
-GRADIENT_ACCUMULATION_STEPS: 1
+GRADIENT_ACCUMULATION_STEPS: 4
 GRADIENT_CLIPPING: 0.1
-NUM_EPOCH: 50
-EARLY_STOPPING: 10
-VALIDATION_FREQUENCY: 5
+NUM_EPOCH: 200
+EARLY_STOPPING: 7
+VALIDATION_FREQUENCY: 3
 SAVED_PERIOD: 5
-CHECKPOINT_DIR: ./saved/
-RESUME_PATH: 
+CHECKPOINT_DIR: /opt/ml/model/
+RESUME_PATH: ./pretrained/se_resnext50_32x4d_Unet.pth

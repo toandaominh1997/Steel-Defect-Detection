@@ -19,7 +19,7 @@ def getattribute(config, name_package, *args, **kwargs):
 
 def main():
     parser = argparse.ArgumentParser(description='Semantic Segmentation')
-    parser.add_argument('--train_cfg', type=str, default='./configs/train_config.yaml', help='train config path')
+    parser.add_argument('--train_cfg', type=str, default='./configs/sagemaker/pretrain_config.yaml', help='train config path')
     args = parser.parse_args()
     config_folder = Path(args.train_cfg.strip("/"))
     train_config = load_yaml(config_folder)

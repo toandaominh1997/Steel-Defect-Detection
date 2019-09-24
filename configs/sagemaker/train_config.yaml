@@ -1,6 +1,5 @@
 SEED: 42
-DEVICE: cuda
-DEVICE_LIST: [0]
+DEVICE: [6]
 # DATASET
 ROOT: ./data/train_images/
 DATA_TRAIN: ./data/train.csv
@@ -49,7 +48,7 @@ MODEL:
  CLASS: Model
  ARGS:
   num_class: 4
-  encoder: resnet34
+  encoder: se_resnext50_32x4d
   decoder: Unet
   activation: softmax
   encoder_weights: imagenet
@@ -83,11 +82,11 @@ SCHEDULER:
   min_lr: 0.0000001
 
 
-GRADIENT_ACCUMULATION_STEPS: 1
+GRADIENT_ACCUMULATION_STEPS: 4
 GRADIENT_CLIPPING: 0.1
-NUM_EPOCH: 50
-EARLY_STOPPING: 10
-VALIDATION_FREQUENCY: 5
+NUM_EPOCH: 200
+EARLY_STOPPING: 7
+VALIDATION_FREQUENCY: 3
 SAVED_PERIOD: 5
-CHECKPOINT_DIR: ./saved/
-RESUME_PATH: 
+CHECKPOINT_DIR: ./saved #/opt/ml/model/
+RESUME_PATH: ./pretrained/se_resnext50_32x4d_Unet.pth
